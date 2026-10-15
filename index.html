@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#101014">
+  <meta name="description" content="Prepare PDFs e imagens digitalizadas no próprio navegador: divida páginas duplas, corrija inclinação, remova margens e adicione OCR pesquisável.">
+  <title>Negar — preparação de PDFs</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+  <header class="topbar shell">
+    <a class="brand" href="#inicio" aria-label="Negar, início">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M8 3.8h10.8L25 10v17.7H8z"/><path d="M18.5 4v6.5H25M11.5 16h10M11.5 20h10M11.5 24h6"/></svg></span>
+      <span class="brand-name">negar<span class="brand-dot">.</span></span>
+      <span class="brand-separator"></span>
+      <span class="brand-caption">preparador de documentos</span>
+    </a>
+    <div class="topbar-right">
+      <span class="privacy-pill"><span class="privacy-dot"></span> Processamento local</span>
+      <a class="top-link" href="#como-funciona">Como funciona <span aria-hidden="true">↗</span></a>
+    </div>
+  </header>
+
+  <main id="inicio" class="shell main-layout">
+    <section class="hero">
+      <p class="eyebrow"><span class="eyebrow-line"></span> DOCUMENTOS MAIS LIMPOS, SEM ENVIAR ARQUIVOS</p>
+      <h1>Do papel digitalizado<br>ao PDF <span>pronto para ler.</span></h1>
+      <p class="hero-copy">Divida páginas duplas, alinhe o texto, remova margens vazias e gere um PDF pesquisável. Tudo acontece no seu navegador.</p>
+      <div class="hero-points">
+        <span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10 4 4 8-9"/></svg> Sem upload para servidor</span>
+        <span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10 4 4 8-9"/></svg> OCR em português</span>
+        <span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10 4 4 8-9"/></svg> PDF e imagens</span>
+      </div>
+    </section>
+
+    <div class="workspace">
+      <section class="work-panel panel" aria-labelledby="files-title">
+        <div class="panel-head">
+          <div>
+            <p class="section-kicker">01 / ARQUIVOS</p>
+            <h2 id="files-title">Adicione seus documentos</h2>
+          </div>
+          <span id="file-count" class="count-badge">0 arquivos</span>
+        </div>
+
+        <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Selecionar ou soltar PDFs e imagens">
+          <input id="file-input" type="file" accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.bmp,.webp,application/pdf,image/png,image/jpeg,image/tiff,image/bmp,image/webp" multiple hidden>
+          <div class="upload-art" aria-hidden="true">
+            <svg viewBox="0 0 56 56"><path d="M17 7h16l9 9v31H17z"/><path d="M33 7v10h9M12 16H9v34h29v-3M22 30h15M22 36h11M28 25v-8m-4 4 4-4 4 4"/></svg>
+          </div>
+          <h3>Solte seus arquivos aqui</h3>
+          <p>ou <button id="browse-button" class="inline-link" type="button">escolha no computador</button></p>
+          <div class="format-row"><span>PDF</span><span>PNG</span><span>JPG</span><span>TIFF</span><span>BMP</span><span>WEBP</span></div>
+          <p class="drop-note">Vários arquivos de uma vez. Nada é enviado para a internet.</p>
+        </div>
+
+        <div id="queue-area" class="queue-area" hidden>
+          <div class="queue-head"><span>Fila de processamento</span><button id="clear-button" class="text-button" type="button">Remover tudo</button></div>
+          <div id="file-list" class="file-list" aria-live="polite"></div>
+        </div>
+
+        <div id="progress-panel" class="progress-panel" hidden aria-live="polite">
+          <div class="progress-head"><span id="progress-label">Preparando…</span><strong id="progress-percent">0%</strong></div>
+          <div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
+          <p id="progress-detail" class="progress-detail">Os arquivos permanecem no seu dispositivo.</p>
+        </div>
+
+        <div id="notice" class="notice" role="status" hidden></div>
+        <div id="results-area" class="results-area" hidden>
+          <div class="results-heading"><div><p class="section-kicker">SAÍDA</p><h3>Documentos prontos</h3></div><button id="download-zip" class="button button-secondary" type="button" hidden>Baixar tudo (.zip)</button></div>
+          <div id="results-list" class="results-list"></div>
+        </div>
+
+        <div class="work-footer">
+          <span class="secure-icon" aria-hidden="true"><svg viewBox="0 0 20 20"><rect x="4.5" y="8.5" width="11" height="8" rx="2"/><path d="M7 8.5V6a3 3 0 0 1 6 0v2.5"/></svg></span>
+          <span>Seus documentos são processados neste navegador.</span>
+          <span class="footer-separator">·</span>
+          <span>Não existe conta nem cadastro.</span>
+        </div>
+      </section>
+
+      <aside class="settings-panel panel" aria-labelledby="settings-title">
+        <div class="panel-head settings-heading">
+          <div><p class="section-kicker">02 / AJUSTES</p><h2 id="settings-title">Como preparar</h2></div>
+          <span class="settings-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9M13 4v6M7 14v6"/></svg></span>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-title-row"><label for="dpi">Resolução de saída</label><span id="dpi-value" class="value-chip">250 DPI</span></div>
+          <input id="dpi" type="range" min="150" max="400" step="1" value="250" class="range-input">
+          <div class="range-labels"><span>150 · menor arquivo</span><span>400 · mais detalhe</span></div>
+          <p class="setting-help">Resoluções maiores melhoram o OCR, mas usam mais memória e tempo.</p>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-title-row"><span class="setting-label">Dividir páginas duplas</span><label class="switch"><input id="split-pages" type="checkbox" checked><span class="switch-track"></span><span class="sr-only">Dividir páginas duplas</span></label></div>
+          <p class="setting-help">Páginas em formato paisagem serão separadas em duas páginas verticais.</p>
+          <div id="cut-options" class="subsetting">
+            <label for="cut-mode">Posição da divisão</label>
+            <select id="cut-mode" class="select-input"><option value="auto">Detectar dobra automaticamente</option><option value="manual">Definir porcentagem manual</option></select>
+            <div id="manual-cut-box" class="manual-cut-box" hidden>
+              <div class="setting-title-row"><label for="cut-position">Corte horizontal</label><span id="cut-value" class="value-chip">50%</span></div>
+              <input id="cut-position" type="range" min="40" max="60" step="1" value="50" class="range-input">
+              <div class="range-labels"><span>40%</span><span>60%</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-title-row"><span class="setting-label">Corrigir inclinação</span><label class="switch"><input id="deskew" type="checkbox" checked><span class="switch-track"></span><span class="sr-only">Corrigir inclinação</span></label></div>
+          <p class="setting-help">Estima pequenos desvios de alinhamento, até 5 graus.</p>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-title-row"><span class="setting-label">Remover margens vazias</span><label class="switch"><input id="crop-margins" type="checkbox" checked><span class="switch-track"></span><span class="sr-only">Remover margens vazias</span></label></div>
+          <p class="setting-help">Mantém uma margem de segurança ao redor do conteúdo detectado.</p>
+          <div id="margin-box" class="subsetting">
+            <div class="setting-title-row"><label for="margin">Margem de segurança</label><span id="margin-value" class="value-chip">4%</span></div>
+            <input id="margin" type="range" min="1" max="15" step="1" value="4" class="range-input">
+            <div class="range-labels"><span>1% · mínimo</span><span>15% · amplo</span></div>
+          </div>
+        </div>
+
+        <div class="setting-group last-setting">
+          <div class="setting-title-row"><label for="language">Idioma do OCR</label><span class="language-mark">Aa</span></div>
+          <select id="language" class="select-input"><option value="por" selected>Português</option><option value="eng">Inglês</option><option value="spa">Espanhol</option><option value="por+eng">Português + inglês</option></select>
+          <p class="setting-help">O OCR cria uma camada de texto invisível, permitindo pesquisar e copiar o conteúdo.</p>
+        </div>
+
+        <button id="process-button" class="button button-primary" type="button" disabled><span>Preparar documentos</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
+        <p class="process-hint"><span class="hint-dot"></span> Tudo é executado localmente no dispositivo.</p>
+      </aside>
+    </div>
+
+    <section id="como-funciona" class="info-section">
+      <div class="info-heading"><p class="section-kicker">03 / TRANSPARÊNCIA</p><h2>Feito para preservar o conteúdo.</h2><p>As correções são conservadoras: se o sistema não detectar margens com confiança, ele preserva a página inteira em vez de arriscar cortar texto.</p></div>
+      <div class="info-grid">
+        <article class="info-card"><span class="info-number">01</span><div class="info-icon"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/></svg></div><h3>Preparação</h3><p>PDFs são renderizados na resolução escolhida. Imagens e quadros TIFF também são aceitos.</p></article>
+        <article class="info-card"><span class="info-number">02</span><div class="info-icon"><svg viewBox="0 0 24 24"><path d="M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v5H4zM14 15h6v5h-6z"/></svg></div><h3>Correção</h3><p>Quando habilitadas, a divisão de páginas, correção de inclinação e remoção de margens são aplicadas.</p></article>
+        <article class="info-card"><span class="info-number">03</span><div class="info-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM7 8h10M7 12h6M7 16h10"/><path d="m15 11 2 2 3-4"/></svg></div><h3>OCR e exportação</h3><p>O texto reconhecido é incluído como uma camada invisível sobre as páginas, mantendo o visual digitalizado.</p></article>
+      </div>
+    </section>
+
+    <section class="privacy-note"><span class="privacy-large"><svg viewBox="0 0 24 24"><path d="M12 3 20 6v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg></span><div><h3>Privacidade por padrão</h3><p>O PDF ou a imagem que você seleciona não é enviado a um servidor de processamento. A primeira utilização precisa carregar as bibliotecas de código e os dados de idioma do OCR de seus distribuidores; esses recursos não recebem seus documentos.</p></div></section>
+  </main>
+
+  <footer class="shell site-footer"><a class="footer-brand" href="#inicio">negar<span>.</span></a><p>Um pequeno utilitário para documentos digitalizados.</p><a href="#inicio" class="back-top">Voltar ao início ↑</a></footer>
+  <noscript><div class="noscript">Este site precisa de JavaScript habilitado para preparar os documentos.</div></noscript>
+</body>
+</html>
